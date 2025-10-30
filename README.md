@@ -1,50 +1,58 @@
-# Welcome to your Expo app 👋
+# Карта с маркерами - React Native приложение
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Мобильное приложение для создания маркеров на карте с возможностью прикрепления изображений
 
-## Get started
+## Функциональность
 
-1. Install dependencies
+* Добавление маркеров долгим нажатием на карту
+* Выбор цвета маркера
+* Добавление названия и описания к маркерам
+* Прикрепление изображений к маркерам
+* Просмотр изображений в полноэкранном режиме
+* Удаление маркеров и изображений
 
-   ```bash
-   npm install
-   ```
+## Технологии
 
-2. Start the app
+* React Native
+* Expo
+* TypeScript
+* React Native Maps
+* Expo Image Picker
+* Expo Router
 
-   ```bash
-   npx expo start
-   ```
+## Установка и запуск
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1. Клонируйте репозиторий:
 
 ```bash
-npm run reset-project
+git clone <URL_репозитория>
+cd <папка_проекта>
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Установите зависимости:
 
-## Learn more
+```bash
+npm install
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Запустите приложение:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+```bash
+npx expo start
+```
 
-## Join the community
+4. Откройте приложение Expo Go на вашем устройстве и отсканируйте QR-код, чтобы протестировать приложение
 
-Join our community of developers creating universal apps.
+## Дополнительно реализованные функции
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+* Выбор цвета маркера из 5 возможных в модальном окне при долгом нажатии
+* Заполнения названия и описания маркера в модальном окне при долгом нажатии
+* Галерея в деталях маркера сделана под мобильный стиль (плитки)
+* Удаление маркера со страницы деталей
+
+## Проблемы и ограничения
+
+* Данные маркеров и изображений сохраняются только в памяти приложения и будут сброшены после перезагрузки
+* Для полноценного использования всех функций требуется разрешение на доступ к галерее для добавления изображений
+* Можно выбирать только по 1 изображению за раз
+* Карта доступна только для мобильных устройств
