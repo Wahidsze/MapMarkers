@@ -36,7 +36,7 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onAddImage, onDele
     setImageModalVisible(true);
   };
 
-  const renderImageItem = ({ item }: { item: MarkerImage }) => (
+  const imageRender = ({ item }: { item: MarkerImage }) => (
     <TouchableOpacity 
       style={styles.imageItem}
       onPress={() => handleImagePress(item)}
@@ -62,7 +62,7 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onAddImage, onDele
           <Text style={styles.sectionTitle}>Галерея ({images.length})</Text>
           <FlatList
             data={images}
-            renderItem={renderImageItem}
+            renderItem={imageRender}
             keyExtractor={(item) => item.id}
             numColumns={3}
             contentContainerStyle={styles.gallery}

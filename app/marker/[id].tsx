@@ -81,7 +81,7 @@ export default function MarkerDetails() {
   if (!latitude || !longitude) {
     return (
       <View style={styles.container}>
-        <Text>Маркер не найден</Text>
+        <Text>Не удалось найти маркер</Text>
       </View>
     );
   }
