@@ -45,10 +45,7 @@ export default function MarkerDetails() {
         const newImages = [...images, newImage];
         setImages(newImages);
 
-        const allImages = MarkerList.getImages();
-        const imagesWithoutCurrentMarker = allImages.filter(img => img.markerId !== id);
-        const allUpdatedImages = imagesWithoutCurrentMarker.concat(newImages);
-        MarkerList.setImages(allUpdatedImages);
+        MarkerList.setImages([...MarkerList.getImages().filter(img => img.markerId !== id), ...newImages]);
       }
     } catch (error) {
       Alert.alert("Ошибка", "Не удалось выбрать изображение.");

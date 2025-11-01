@@ -16,9 +16,7 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onAddImage, onDele
   const [imageModalVisible, setImageModalVisible] = useState(false);
 
   const handleDeletePress = (imageId: string) => {
-    Alert.alert(
-      "Удалить изображение",
-      "Вы уверены, что хотите удалить это изображение?",
+    Alert.alert("Удалить изображение", "Вы уверены, что хотите удалить это изображение?",
       [
         {
           text: "Отмена",
