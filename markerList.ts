@@ -1,17 +1,18 @@
-import { Marker, MARKER_COLORS, MarkerImage } from './types';
+import type { IMarkerList, Marker, MarkerImage } from './types';
+import { MARKER_COLORS } from './types';
 
 let markersStorage: Marker[] = [];
 let imagesStorage: MarkerImage[] = [];
 
-export const MarkerList = {
+export const MarkerList: IMarkerList = {
   getMarkers: () => markersStorage,
-  setMarkers: (newMarkers: Marker[]) => { markersStorage = newMarkers; },
-  getImages: (markerId?: string) =>
+  setMarkers: (newMarkers) => { markersStorage = newMarkers; },
+  getImages: (markerId) => 
     markerId ? imagesStorage.filter(img => img.markerId === markerId) : imagesStorage,
-  setImages: (newImages: MarkerImage[]) => { imagesStorage = newImages; },
-  deleteMarker: (id: string) => {
+  setImages: (newImages) => { imagesStorage = newImages; },
+  deleteMarker: (id) => {
     markersStorage = markersStorage.filter(m => m.id !== id);
     imagesStorage = imagesStorage.filter(img => img.markerId !== id);
   },
-  getMarkerColor: (color?: string) => color || MARKER_COLORS.RED,
+  getMarkerColor: (color) => color || MARKER_COLORS.RED,
 };

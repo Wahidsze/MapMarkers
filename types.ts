@@ -24,6 +24,15 @@ export interface MarkerNavigationParams {
   color?: string;
 }
 
+export interface IMarkerList {
+  getMarkers(): Marker[];
+  setMarkers(newMarkers: Marker[]): void;
+  getImages(markerId?: string): MarkerImage[];
+  setImages(newImages: MarkerImage[]): void;
+  deleteMarker(id: string): void;
+  getMarkerColor(color?: string): string;
+}
+
 export const MARKER_COLORS = {
   RED: '#FF3B30',
   BLUE: '#007AFF', 
