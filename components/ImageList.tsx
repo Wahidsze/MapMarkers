@@ -11,11 +11,7 @@ interface ImageListProps {
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 3;
 
-export const ImageList: React.FC<ImageListProps> = ({ 
-  images, 
-  onAddImage, 
-  onDeleteImage 
-}) => {
+export const ImageList: React.FC<ImageListProps> = ({ images, onAddImage, onDeleteImage }) => {
   const [selectedImage, setSelectedImage] = useState<MarkerImage | null>(null);
   const [imageModalVisible, setImageModalVisible] = useState(false);
 

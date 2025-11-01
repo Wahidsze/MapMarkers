@@ -2,8 +2,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { MarkerList } from '../../app/markerList';
 import { ImageList } from "../../components/ImageList";
+import { MarkerList } from '../../markerList';
 import { MARKER_COLORS, MarkerImage } from "../../types";
 
 export default function MarkerDetails() {
@@ -24,10 +24,10 @@ export default function MarkerDetails() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.8,
+        quality: 0.9,
       });
 
       if (result.canceled) {
@@ -46,7 +46,9 @@ export default function MarkerDetails() {
         setImages(newImages);
 
         const allImages = MarkerList.getImages();
-        MarkerList.setImages([...allImages.filter(img => img.markerId !== id), ...newImages]);
+        const imagesWithoutCurrentMarker = allImages.filter(img => img.markerId !== id);
+        const allUpdatedImages = imagesWithoutCurrentMarker.concat(newImages);
+        MarkerList.setImages(allUpdatedImages);
       }
     } catch (error) {
       Alert.alert("Ошибка", "Не удалось выбрать изображение.");
@@ -58,7 +60,7 @@ export default function MarkerDetails() {
   const handleDeleteImage = (imageId: string) => {
     const newImages = images.filter(img => img.id !== imageId);
     setImages(newImages);
-    MarkerList.setImages(MarkerList.getImages().filter(img => img.id !== imageId));
+    MarkerList.setImages(newImages);
   };
 
   const handleDeleteMarker = () => {

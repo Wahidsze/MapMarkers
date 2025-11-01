@@ -1,4 +1,4 @@
-import type { Marker, MarkerImage } from '../types';
+import { Marker, MARKER_COLORS, MarkerImage } from './types';
 
 let markersStorage: Marker[] = [];
 let imagesStorage: MarkerImage[] = [];
@@ -12,5 +12,6 @@ export const MarkerList = {
   deleteMarker: (id: string) => {
     markersStorage = markersStorage.filter(m => m.id !== id);
     imagesStorage = imagesStorage.filter(img => img.markerId !== id);
-  }
+  },
+  getMarkerColor: (color?: string) => color || MARKER_COLORS.RED,
 };

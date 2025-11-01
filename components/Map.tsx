@@ -1,13 +1,12 @@
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker as MapMarker } from "react-native-maps";
-import { MarkerList } from "../app/markerList";
+import { MarkerList } from "../markerList";
 import { Marker, MARKER_COLORS, MarkerColor, MarkerNavigationParams } from "../types";
 
 const Map = () => {
   const router = useRouter();
-  const mapRef = useRef<MapView>(null);
 
   const [region, setRegion] = useState({
     latitude: 58.007124,
@@ -18,7 +17,7 @@ const Map = () => {
 
   const [markers, setMarkers] = useState<Marker[]>(MarkerList.getMarkers());
   const [selectedCoordinate, setSelectedCoordinate] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [colorModalVisible, setColorModalVisible] = useState(false);
+  const [colorModalVisible, setModalVisible] = useState(false);
   const [selectedColor, setSelectedColor] = useState<MarkerColor>(MARKER_COLORS.RED);
   const [markerTitle, setMarkerTitle] = useState("");
   const [markerDescription, setMarkerDescription] = useState("");
@@ -43,7 +42,7 @@ const Map = () => {
   const handleLongPress = (event: any) => {
     try {
       if (!isMapReady) {
-        Alert.alert("Ошибка", "Карта еще не загрузилась. Подождите немного.");
+        Alert.alert("Ошибка", "Карта еще не загрузилась. Подождите.");
         return;
       }
 
@@ -52,7 +51,7 @@ const Map = () => {
       setMarkerTitle(`Маркер ${markers.length + 1}`);
       setMarkerDescription("");
       setSelectedColor(MARKER_COLORS.RED);
-      setColorModalVisible(true);
+      setModalVisible(true);
     } catch (error) {
       Alert.alert("Ошибка", "Не удалось выбрать координаты для маркера.");
       console.error(error);
@@ -86,7 +85,7 @@ const Map = () => {
       setMarkers(updatedMarkers);
       MarkerList.setMarkers(updatedMarkers);
 
-      setColorModalVisible(false);
+      setModalVisible(false);
       setSelectedCoordinate(null);
       setMarkerTitle("");
       setMarkerDescription("");
@@ -115,8 +114,6 @@ const Map = () => {
       console.error(error);
     }
   };
-
-  const getMarkerColor = (color?: string) => color || MARKER_COLORS.RED;
 
   const handleRetryMap = () => {
     setMapError(null);
@@ -155,7 +152,6 @@ const Map = () => {
       )}
 
       <MapView
-        ref={mapRef}
         style={{ flex: 1, opacity: isMapReady ? 1 : 0.5 }}
         region={region}
         onRegionChangeComplete={setRegion}
@@ -175,7 +171,7 @@ const Map = () => {
             }}
             title={marker.title}
             description={marker.description}
-            pinColor={getMarkerColor(marker.color)}
+            pinColor={MarkerList.getMarkerColor(marker.color)}
             onPress={() => handleMarkerPress(marker)}
           />
         ))}
@@ -229,7 +225,7 @@ const Map = () => {
               <View style={styles.creatorButtons}>
                 <TouchableOpacity
                   style={[styles.creatorButton, styles.cancelButton]}
-                  onPress={() => setColorModalVisible(false)}
+                  onPress={() => setModalVisible(false)}
                 >
                   <Text style={styles.creatorButtonText}>Отмена</Text>
                 </TouchableOpacity>
@@ -300,7 +296,7 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
   },
   selectedColorButton: {
-    borderColor: "#007AFF",
+    borderColor: "#1C1C1E",
     borderWidth: 3,
   },
   creatorButtons: {
