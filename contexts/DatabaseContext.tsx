@@ -5,26 +5,23 @@ import { initializeDatabase } from '../database/schema';
 import type { IMarkerService, Marker, MarkerImage } from '../types';
 import { MARKER_COLORS } from '../types';
 
-interface DatabaseContextType extends IMarkerService {
+interface IDatabaseContext extends IMarkerService {
   isLoading: boolean;
-  error: string | null;
   db: SQLite.SQLiteDatabase | null;
   isInitialized: boolean;
 }
 
-const DatabaseContext = createContext<DatabaseContextType | undefined>(undefined);
+const DatabaseContext = createContext<IDatabaseContext | undefined>(undefined);
 
 export const DBProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
   const [operations, setOperations] = useState<DatabaseOperations | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const initializeDB = async (retryCount = 0): Promise<void> => {
     try {
       setIsLoading(true);
-      setError(null);
       
       console.log(`Попытка инициализации базы данных... ${retryCount > 0 ? `(Попытка ${retryCount})` : ''}`);
       const database = await initializeDatabase();
@@ -43,7 +40,7 @@ export const DBProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         return initializeDB(retryCount + 1);
       }
       
-      setError(`Ошибка инициализации базы данных: ${errorMessage}`);
+      console.error(`Ошибка инициализации базы данных: ${errorMessage}`);
       console.error('Все попытки инициализации базы данных провалились: ', err);
       setIsInitialized(false);
     } finally {
@@ -120,9 +117,8 @@ export const DBProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     return color || MARKER_COLORS.RED;
   };
 
-  const contextValue: DatabaseContextType = {
+  const contextValue: IDatabaseContext = {
     isLoading,
-    error,
     db,
     isInitialized,
     initializeDatabase: initializeDatabaseContext,
@@ -142,7 +138,7 @@ export const DBProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   );
 };
 
-export const useDB = (): DatabaseContextType => {
+export const useDB = (): IDatabaseContext => {
   const context = useContext(DatabaseContext);
   if (context === undefined) {
     throw new Error('Контекст не определен');

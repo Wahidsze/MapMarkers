@@ -71,8 +71,6 @@ const runMigrations = async (db: SQLite.SQLiteDatabase, fromVersion: number, toV
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (marker_id) REFERENCES markers (id) ON DELETE CASCADE
       );
-      
-      CREATE INDEX IF NOT EXISTS idx_marker_images_marker_id ON marker_images(marker_id);
     `);
     
     console.log('Миграция на версию 1 выполнена');
