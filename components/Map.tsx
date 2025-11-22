@@ -2,11 +2,12 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker as MapMarker } from "react-native-maps";
-import { MarkerList } from "../markerList";
+import { useDB } from "../contexts/DatabaseContext";
 import { Marker, MARKER_COLORS, MarkerColor, MarkerNavigationParams } from "../types";
 
 const Map = () => {
   const router = useRouter();
+  const { addMarker, getMarkers, getMarkerColor, isInitialized, isLoading: dbLoading } = useDB();
 
   const [region, setRegion] = useState({
     latitude: 58.007124,
@@ -15,7 +16,7 @@ const Map = () => {
     longitudeDelta: 0.009,
   });
 
-  const [markers, setMarkers] = useState<Marker[]>(MarkerList.getMarkers());
+  const [markers, setMarkers] = useState<Marker[]>([]);
   const [selectedCoordinate, setSelectedCoordinate] = useState<{ latitude: number; longitude: number } | null>(null);
   const [colorModalVisible, setModalVisible] = useState(false);
   const [selectedColor, setSelectedColor] = useState<MarkerColor>(MARKER_COLORS.RED);
@@ -23,6 +24,7 @@ const Map = () => {
   const [markerDescription, setMarkerDescription] = useState("");
   const [mapError, setMapError] = useState<string | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleMapReady = () => {
     setIsMapReady(true);
@@ -38,6 +40,17 @@ const Map = () => {
 
     return () => clearTimeout(timer);
   }, [isMapReady]);
+
+  const loadMarkers = async () => {
+    try {
+      console.log('Загрузка маркеров...');
+      const markersFromDb = await getMarkers();
+      console.log('Маркеры загружены: ', markersFromDb);
+      setMarkers(markersFromDb);
+    } catch (error) {
+      console.error("Ошибка загрузки маркеров: ", error);
+    }
+  };
 
   const handleLongPress = (event: any) => {
     try {
@@ -60,7 +73,7 @@ const Map = () => {
 
   const handleColorSelect = (color: MarkerColor) => setSelectedColor(color);
 
-  const handleCreateMarker = () => {
+  const handleCreateMarker = async () => {
     if (!markerTitle.trim()) {
       Alert.alert("Ошибка", "Название маркера не может быть пустым");
       return;
@@ -72,8 +85,9 @@ const Map = () => {
     }
 
     try {
-      const newMarker: Marker = {
-        id: Date.now().toString(),
+      setIsLoading(true);
+
+      const newMarker: Omit<Marker, 'id'> = {
         latitude: selectedCoordinate.latitude,
         longitude: selectedCoordinate.longitude,
         title: markerTitle,
@@ -81,24 +95,26 @@ const Map = () => {
         color: selectedColor,
       };
 
-      const updatedMarkers = [...markers, newMarker];
-      setMarkers(updatedMarkers);
-      MarkerList.setMarkers(updatedMarkers);
+      await addMarker(newMarker);
+      
+      await loadMarkers();
 
       setModalVisible(false);
       setSelectedCoordinate(null);
       setMarkerTitle("");
       setMarkerDescription("");
     } catch (error) {
-      Alert.alert("Ошибка", "Не удалось сохранить маркер.");
-      console.error(error);
+      console.error("Ошибка создания маркера: ", error);
+      Alert.alert("Ошибка", "Не удалось сохранить маркер в базу данных.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleMarkerPress = (marker: Marker) => {
     try {
       const params: MarkerNavigationParams = {
-        id: marker.id,
+        id: marker.id.toString(),
         latitude: marker.latitude.toString(),
         longitude: marker.longitude.toString(),
         title: marker.title,
@@ -123,16 +139,19 @@ const Map = () => {
 
   useFocusEffect(
     useCallback(() => {
-      try {
-        setMarkers(MarkerList.getMarkers());
-      } catch (error) {
-        console.error("Ошибка обновления маркеров:", error);
+      if (isInitialized) {
+        loadMarkers();
       }
-    }, [])
+    }, [isInitialized, getMarkers])
   );
 
   return (
     <View style={{ flex: 1 }}>
+      {isLoading && (
+      <View style={styles.databaseLoadingContainer}>
+        <Text style={styles.databaseLoadingText}>Инициализация базы данных...</Text>
+      </View>
+      )}
       {mapError && (
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{mapError}</Text>
@@ -171,7 +190,7 @@ const Map = () => {
             }}
             title={marker.title}
             description={marker.description}
-            pinColor={MarkerList.getMarkerColor(marker.color)}
+            pinColor={getMarkerColor(marker.color)}
             onPress={() => handleMarkerPress(marker)}
           />
         ))}
@@ -193,6 +212,7 @@ const Map = () => {
                   value={markerTitle}
                   onChangeText={setMarkerTitle}
                   placeholder="Введите название маркера"
+                  editable={!isLoading}
                 />
 
                 <Text style={styles.inputLabel}>Описание маркера:</Text>
@@ -204,6 +224,7 @@ const Map = () => {
                   multiline
                   numberOfLines={3}
                   textAlignVertical="top"
+                  editable={!isLoading}
                 />
 
                 <Text style={styles.inputLabel}>Цвет маркера:</Text>
@@ -217,6 +238,7 @@ const Map = () => {
                         selectedColor === color && styles.selectedColorButton,
                       ]}
                       onPress={() => handleColorSelect(color)}
+                      disabled={isLoading}
                     />
                   ))}
                 </View>
@@ -226,14 +248,18 @@ const Map = () => {
                 <TouchableOpacity
                   style={[styles.creatorButton, styles.cancelButton]}
                   onPress={() => setModalVisible(false)}
+                  disabled={isLoading}
                 >
                   <Text style={styles.creatorButtonText}>Отмена</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.creatorButton, styles.createButton]}
+                  style={[styles.creatorButton, styles.createButton, isLoading && styles.disabledButton]}
                   onPress={handleCreateMarker}
+                  disabled={isLoading}
                 >
-                  <Text style={styles.creatorButtonText}>Создать</Text>
+                  <Text style={styles.creatorButtonText}>
+                    {isLoading ? "Создание..." : "Создать"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -360,6 +386,23 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '500',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
+  databaseLoadingContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFA500',
+    padding: 10,
+    zIndex: 1001,
+    alignItems: 'center',
+  },
+  databaseLoadingText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 

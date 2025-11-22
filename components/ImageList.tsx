@@ -5,7 +5,7 @@ import { MarkerImage } from '../types';
 interface ImageListProps {
   images: MarkerImage[];
   onAddImage: () => void;
-  onDeleteImage: (imageId: string) => void;
+  onDeleteImage: (imageId: number) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -15,7 +15,7 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onAddImage, onDele
   const [selectedImage, setSelectedImage] = useState<MarkerImage | null>(null);
   const [imageModalVisible, setImageModalVisible] = useState(false);
 
-  const handleDeletePress = (imageId: string) => {
+  const handleDeletePress = (imageId: number) => {
     Alert.alert("Удалить изображение", "Вы уверены, что хотите удалить это изображение?",
       [
         {
@@ -63,7 +63,7 @@ export const ImageList: React.FC<ImageListProps> = ({ images, onAddImage, onDele
           <FlatList
             data={images}
             renderItem={imageRender}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id.toString()}
             numColumns={3}
             contentContainerStyle={styles.gallery}
             showsVerticalScrollIndicator={false}

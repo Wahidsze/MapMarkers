@@ -1,17 +1,18 @@
 export interface Marker {
-  id: string;
+  id: number;
   latitude: number;
   longitude: number;
   title: string;
   description?: string;
   color?: string;
+  createdAt?: string;
 }
 
 export interface MarkerImage {
-  id: string;
+  id: number;
   uri: string;
-  markerId: string;
-  createdAt: Date;
+  markerId: number;
+  createdAt?: string;
 }
 
 export interface MarkerNavigationParams {
@@ -24,12 +25,14 @@ export interface MarkerNavigationParams {
   color?: string;
 }
 
-export interface IMarkerList {
-  getMarkers(): Marker[];
-  setMarkers(newMarkers: Marker[]): void;
-  getImages(markerId?: string): MarkerImage[];
-  setImages(newImages: MarkerImage[]): void;
-  deleteMarker(id: string): void;
+export interface IMarkerService {
+  initializeDatabase(): Promise<void>;
+  addMarker(marker: Omit<Marker, 'id'>): Promise<number>;
+  deleteMarker(id: number): Promise<void>;
+  getMarkers(): Promise<Marker[]>;
+  addImage(image: Omit<MarkerImage, 'id'>): Promise<number>;
+  deleteImage(id: number): Promise<void>;
+  getMarkerImages(markerId: number): Promise<MarkerImage[]>;
   getMarkerColor(color?: string): string;
 }
 

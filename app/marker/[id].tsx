@@ -1,17 +1,40 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ImageList } from "../../components/ImageList";
-import { MarkerList } from '../../markerList';
+import { useDB } from "../../contexts/DatabaseContext";
 import { MARKER_COLORS, MarkerImage } from "../../types";
 
 export default function MarkerDetails() {
   const { id, latitude, longitude, title, description, color } = useLocalSearchParams();
   const router = useRouter();
+  const { getMarkerImages, addImage, deleteImage, deleteMarker, isInitialized } = useDB();
 
-  const [images, setImages] = useState<MarkerImage[]>(MarkerList.getImages(id as string));
+  const [images, setImages] = useState<MarkerImage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [imagesLoading, setImagesLoading] = useState(true);
+
+  const loadImages = async () => {
+    try {
+      setImagesLoading(true);
+      const markerId = parseInt(id as string);
+      console.log('Загрузка изображений для маркера с id = ', markerId);
+      const markerImages = await getMarkerImages(markerId);
+      console.log('Изображения загружены: ', markerImages);
+      setImages(markerImages);
+    } catch (error) {
+      console.error("Ошибка загрузки изображений: ", error);
+    } finally {
+      setImagesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isInitialized) {
+      loadImages();
+    }
+  }, [id, isInitialized]);
 
   const handleAddImage = async () => {
     try {
@@ -35,43 +58,49 @@ export default function MarkerDetails() {
       }
 
       if (result.assets && result.assets[0]) {
-        const newImage: MarkerImage = {
-          id: Date.now().toString(),
+        const newImage: Omit<MarkerImage, 'id'> = {
           uri: result.assets[0].uri,
-          markerId: id as string,
-          createdAt: new Date(),
+          markerId: parseInt(id as string),
         };
 
-        const newImages = [...images, newImage];
-        setImages(newImages);
-
-        MarkerList.setImages([...MarkerList.getImages().filter(img => img.markerId !== id), ...newImages]);
+        await addImage(newImage);
+        
+        await loadImages();
       }
     } catch (error) {
-      Alert.alert("Ошибка", "Не удалось выбрать изображение.");
+      console.error("Ошибка добавления изображения: ", error);
+      Alert.alert("Ошибка", "Не удалось добавить изображение.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteImage = (imageId: string) => {
-    const newImages = images.filter(img => img.id !== imageId);
-    setImages(newImages);
-    MarkerList.setImages(newImages);
+  const handleDeleteImage = async (imageId: number) => {
+    try {
+      await deleteImage(imageId);
+      
+      setImages(prev => prev.filter(img => img.id !== imageId));      
+    } catch (error) {
+      console.error("Ошибка удаления изображения: ", error);
+      Alert.alert("Ошибка", "Не удалось удалить изображение");
+    }
   };
 
-  const handleDeleteMarker = () => {
-    Alert.alert(
-      "Удалить маркер",
-      "Вы уверены, что хотите удалить этот маркер?",
+  const handleDeleteMarker = async () => {
+    Alert.alert("Удалить маркер", "Вы уверены, что хотите удалить этот маркер? Все изображения будут удалены",
       [
         { text: "Отмена", style: "cancel" },
         {
           text: "Удалить",
           style: "destructive",
-          onPress: () => {
-            MarkerList.deleteMarker(id as string);
-            router.back();
+          onPress: async () => {
+            try {
+              await deleteMarker(parseInt(id as string));
+              router.back();
+            } catch (error) {
+              console.error("Ошибка удаления маркера: ", error);
+              Alert.alert("Ошибка", "Не удалось удалить маркер");
+            }
           },
         },
       ]
@@ -125,10 +154,12 @@ export default function MarkerDetails() {
           </View>
         </View>
 
-        {loading ? (
+        {loading || imagesLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
-            <Text style={styles.loadingText}>Загрузка изображения...</Text>
+            <Text style={styles.loadingText}>
+              {loading ? "Добавление изображения..." : "Загрузка изображений..."}
+            </Text>
           </View>
         ) : (
           <ImageList
