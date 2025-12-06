@@ -1,13 +1,22 @@
+import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import MapView, { Marker as MapMarker } from "react-native-maps";
 import { useDB } from "../contexts/DatabaseContext";
+import { useLocationTracker } from '../hooks/useLocationTracker';
+import { isWithinNotificationRadius } from '../services/location';
+import { NotificationManager } from '../services/notifications';
 import { Marker, MARKER_COLORS, MarkerColor, MarkerNavigationParams } from "../types";
+
+const notificationManager = new NotificationManager();
 
 const Map = () => {
   const router = useRouter();
-  const { addMarker, getMarkers, getMarkerColor, isInitialized, isLoading: dbLoading } = useDB();
+  const { addMarker, getMarkers, getMarkerColor, isInitialized } = useDB();
+  
+  const { userLocation, locationError } = useLocationTracker();
 
   const [region, setRegion] = useState({
     latitude: 58.007124,
@@ -22,35 +31,41 @@ const Map = () => {
   const [selectedColor, setSelectedColor] = useState<MarkerColor>(MARKER_COLORS.RED);
   const [markerTitle, setMarkerTitle] = useState("");
   const [markerDescription, setMarkerDescription] = useState("");
-  const [mapError, setMapError] = useState<string | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const markersLoadedRef = useRef(false);
 
   const handleMapReady = () => {
     setIsMapReady(true);
-    setMapError(null);
   };
 
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!isMapReady) {
-        setMapError("Карта не загрузилась. Проверьте подключение к интернету.");
-      }
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [isMapReady]);
-
-  const loadMarkers = async () => {
+  const loadMarkers = useCallback(async () => {
     try {
+      if (markersLoadedRef.current) return;
+      
       console.log('Загрузка маркеров...');
       const markersFromDb = await getMarkers();
-      console.log('Маркеры загружены: ', markersFromDb);
       setMarkers(markersFromDb);
+      markersLoadedRef.current = true;
     } catch (error) {
-      console.error("Ошибка загрузки маркеров: ", error);
+      console.error("Ошибка загрузки маркеров:", error);
     }
-  };
+  }, [getMarkers]);
+
+  useEffect(() => {
+    if (isInitialized && !markersLoadedRef.current) {
+      loadMarkers();
+    }
+  }, [isInitialized, loadMarkers]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isInitialized) {
+        markersLoadedRef.current = false;
+        loadMarkers();
+      }
+    }, [isInitialized, loadMarkers])
+  );
 
   const handleLongPress = (event: any) => {
     try {
@@ -97,6 +112,7 @@ const Map = () => {
 
       await addMarker(newMarker);
       
+      markersLoadedRef.current = false;
       await loadMarkers();
 
       setModalVisible(false);
@@ -104,7 +120,7 @@ const Map = () => {
       setMarkerTitle("");
       setMarkerDescription("");
     } catch (error) {
-      console.error("Ошибка создания маркера: ", error);
+      console.error("Ошибка создания маркера:", error);
       Alert.alert("Ошибка", "Не удалось сохранить маркер в базу данных.");
     } finally {
       setIsLoading(false);
@@ -131,44 +147,96 @@ const Map = () => {
     }
   };
 
-  const handleRetryMap = () => {
-    setMapError(null);
-    setIsMapReady(false);
-    setRegion(prev => ({ ...prev }));
-  };
+  useEffect(() => {
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      const markerId = data?.markerId;
 
-  useFocusEffect(
-    useCallback(() => {
-      if (isInitialized) {
-        loadMarkers();
+      if (markerId) {
+        const marker = markers.find(m => m.id === markerId);
+
+        if (marker) {
+          const params = {
+            id: marker.id.toString(),
+            latitude: marker.latitude.toString(),
+            longitude: marker.longitude.toString(),
+            title: marker.title,
+            description: marker.description || "",
+            color: marker.color || MARKER_COLORS.RED,
+          };
+
+          router.push({
+            pathname: "/marker/[id]" as const,
+            params: params,
+          });
+        }
       }
-    }, [isInitialized, getMarkers])
-  );
+    });
+
+    return () => {
+      responseListener.remove();
+    };
+  }, [router, markers]);
+
+  const checkProximity = useCallback((location: Location.LocationObject) => {
+    console.log('Проверка расстояния до маркеров');
+    
+    const currentlyCloseMarkers = new Set<number>();
+    
+    markers.forEach(marker => {
+      const isNear = isWithinNotificationRadius(
+        location.coords.latitude,
+        location.coords.longitude,
+        marker.latitude,
+        marker.longitude
+      );
+      
+      if (isNear) {
+        currentlyCloseMarkers.add(marker.id);
+        console.log(`Пользователь находится рядом с маркером: ${marker.title}`);
+        notificationManager.showNotification(marker);
+      }
+    });
+    
+    notificationManager.clearOldMarkers(currentlyCloseMarkers);
+  }, [markers]);
+
+  useEffect(() => {
+    if (userLocation && markers.length > 0) {
+      checkProximity(userLocation);
+    }
+  }, [userLocation, markers, checkProximity]);
+
+  const centerOnUser = () => {
+    if (userLocation) {
+      setRegion({
+        latitude: userLocation.coords.latitude,
+        longitude: userLocation.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    } else {
+      Alert.alert("Ошибка", "Местоположение пользователя не определено");
+    }
+  };
 
   return (
     <View style={{ flex: 1 }}>
-      {isLoading && (
-      <View style={styles.databaseLoadingContainer}>
-        <Text style={styles.databaseLoadingText}>Инициализация базы данных...</Text>
+      <View style={styles.locationControls}>       
+        {locationError && (
+          <Text style={styles.locationError}>{locationError}</Text>
+        )}
+        
+        {userLocation && (
+          <Text style={styles.locationInfo}>
+            Текущее местоположение: {userLocation.coords.latitude.toFixed(5)}, {userLocation.coords.longitude.toFixed(5)}
+          </Text>
+        )}
+        
+        <Text style={styles.notificationInfo}>
+          Показано уведомлений: {notificationManager.getShownCount()}
+        </Text>
       </View>
-      )}
-      {mapError && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{mapError}</Text>
-          <TouchableOpacity 
-            style={styles.retryButton}
-            onPress={handleRetryMap}
-          >
-            <Text style={styles.retryButtonText}>Повторить</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {!isMapReady && !mapError && (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Загрузка карты...</Text>
-        </View>
-      )}
 
       <MapView
         style={{ flex: 1, opacity: isMapReady ? 1 : 0.5 }}
@@ -176,7 +244,6 @@ const Map = () => {
         onRegionChangeComplete={setRegion}
         onLongPress={handleLongPress}
         onMapReady={handleMapReady}
-        onLayout={handleMapReady}
         onPanDrag={() => {
           if (!isMapReady) setIsMapReady(true);
         }}
@@ -194,7 +261,27 @@ const Map = () => {
             onPress={() => handleMarkerPress(marker)}
           />
         ))}
+        
+        {userLocation && (
+          <MapMarker
+            coordinate={{
+              latitude: userLocation.coords.latitude,
+              longitude: userLocation.coords.longitude,
+            }}
+            title="Вы здесь"
+            image={require('../assets/person.png')}
+          />
+        )}
       </MapView>
+
+      {userLocation && (
+        <TouchableOpacity 
+          style={styles.centerButton}
+          onPress={centerOnUser}
+        >
+        <Text style={styles.centerButtonText}>📍</Text>
+        </TouchableOpacity>
+      )}
 
       <Modal visible={colorModalVisible}>
         <KeyboardAvoidingView
@@ -343,66 +430,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  errorContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(255,59,48,0.9)',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  errorText: {
-    color: 'white',
-    textAlign: 'center',
-    marginBottom: 12,
-    fontSize: 14,
-  },
-  retryButton: {
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  retryButtonText: {
-    color: '#FF3B30',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  loadingContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(0,122,255,0.9)',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  loadingText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   disabledButton: {
     opacity: 0.6,
   },
-  databaseLoadingContainer: {
+  locationControls: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFA500',
+    top: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     padding: 10,
-    zIndex: 1001,
-    alignItems: 'center',
+    borderRadius: 8,
+    zIndex: 1000,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  databaseLoadingText: {
-    color: 'white',
+  locationError: {
+    color: '#FF3B30',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  locationInfo: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+  },
+  notificationInfo: {
+    fontSize: 12,
+    color: '#34C759',
+    marginTop: 5,
     fontWeight: 'bold',
+  },
+  centerButton: {
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    backgroundColor: 'white',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  centerButtonText: {
+    fontSize: 24,
   },
 });
 

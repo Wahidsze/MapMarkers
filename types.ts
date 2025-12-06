@@ -1,3 +1,5 @@
+import * as Location from 'expo-location';
+
 export interface Marker {
   id: number;
   latitude: number;
@@ -43,5 +45,22 @@ export const MARKER_COLORS = {
   ORANGE: '#FF9500',
   PURPLE: '#AF52DE',
 } as const;
+
+export interface LocationConfig {
+  accuracy: Location.Accuracy;
+  timeInterval: number;
+  distanceInterval: number;
+}
+
+export interface LocationState {
+  location: Location.LocationObject | null;
+  errorMsg: string | null;
+}
+
+export interface ActiveNotification {
+  markerId: number;
+  notificationId: string;
+  timestamp: number;
+}
 
 export type MarkerColor = typeof MARKER_COLORS[keyof typeof MARKER_COLORS];
